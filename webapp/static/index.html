@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Allium · Onion Quality Intelligence</title>
+  <meta name="description" content="Upload a photo of onions and classify every bulb as healthy or unhealthy.">
+  <meta name="theme-color" content="#F6F1E9">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script>
+    try { if (localStorage.getItem('allium-theme') === 'dark') document.documentElement.dataset.theme = 'dark'; } catch (e) {}
+  </script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <div class="backdrop" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a class="brand" href="/" aria-label="Allium home">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+          <path class="brand-bulb" d="M16 4.2c.1 2.5-1 4.3-3.1 6C9.1 13.3 6.4 16.4 6.4 20.6 6.4 25.7 10.7 29 16 29s9.6-3.3 9.6-8.4c0-4.2-2.7-7.3-6.5-10.4-2.1-1.7-3.2-3.5-3.1-6z"/>
+          <path class="brand-layers" d="M16 10.2c-2.8 2.7-4.5 6-4.5 10.2 0 3.8 1.7 6.6 4.5 8.1m0-18.3c2.8 2.7 4.5 6 4.5 10.2 0 3.8-1.7 6.6-4.5 8.1m0-18.3v18.3"/>
+          <path class="brand-sprout" d="M16 4.6c-.2-1.4-1-2.4-2.4-2.9"/>
+        </svg>
+        <span class="brand-word">Allium</span>
+        <span class="brand-sub">Onion Quality Intelligence</span>
+      </a>
+      <div class="topbar-actions">
+        <div class="status" id="status" data-state="loading" role="status">
+          <span class="status-dot" aria-hidden="true"></span><span id="status-text">Connecting</span>
+        </div>
+        <button class="icon-btn" id="theme-toggle" type="button" aria-label="Switch to dark theme">
+          <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.6A8 8 0 0 1 9.4 4a8 8 0 1 0 10.6 10.6z"/></svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero reveal" style="--i: 0">
+      <p class="eyebrow"><span class="eyebrow-rule" aria-hidden="true"></span>Visual quality inspection</p>
+      <h1>Every onion, <em>read</em> at&nbsp;a&nbsp;glance.</h1>
+      <p class="lede">Upload a photo of an onion batch. Allium finds each bulb, classifies it as healthy or unhealthy, and tallies the lot in about a second.</p>
+    </section>
+
+    <div class="workspace">
+      <aside class="controls" aria-label="Analysis settings">
+        <section class="panel panel-model reveal" style="--i: 1">
+          <h2 class="panel-title">Model</h2>
+          <div class="model-list" id="model-list" role="radiogroup" aria-label="Model"></div>
+        </section>
+
+        <section class="panel reveal" style="--i: 2">
+          <div class="panel-head">
+            <h2 class="panel-title"><label for="confidence">Confidence</label></h2>
+            <output class="threshold-value" id="confidence-out" for="confidence">30%</output>
+          </div>
+          <input type="range" id="confidence" min="0.10" max="0.95" step="0.01" value="0.30">
+          <div class="range-scale" aria-hidden="true"><span>More boxes</span><span>Only sure ones</span></div>
+          <p class="hint">Boxes scored below this are hidden. Changes apply instantly.</p>
+        </section>
+
+        <section class="panel reveal" style="--i: 3">
+          <h2 class="panel-title">Try a sample</h2>
+          <div class="samples">
+            <button class="sample" type="button" data-sample="/static/samples/healthy-batch.jpg" data-name="healthy-batch.jpg">
+              <img src="/static/samples/healthy-batch.jpg" alt="" loading="lazy"><span>Healthy</span>
+            </button>
+            <button class="sample" type="button" data-sample="/static/samples/unhealthy-batch.jpg" data-name="unhealthy-batch.jpg">
+              <img src="/static/samples/unhealthy-batch.jpg" alt="" loading="lazy"><span>Unhealthy</span>
+            </button>
+            <button class="sample" type="button" data-sample="/static/samples/dense-pile.jpg" data-name="dense-pile.jpg">
+              <img src="/static/samples/dense-pile.jpg" alt="" loading="lazy"><span>Dense pile</span>
+            </button>
+          </div>
+        </section>
+      </aside>
+
+      <section class="stage-col" aria-label="Image">
+        <div class="panel stage reveal" id="stage" style="--i: 2">
+          <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Upload an onion photo">
+            <svg class="rings" viewBox="0 0 168 168" aria-hidden="true">
+              <circle cx="84" cy="84" r="80"/>
+              <circle cx="84" cy="89" r="66"/>
+              <circle cx="84" cy="94" r="52"/>
+              <circle cx="84" cy="98" r="38"/>
+              <circle cx="84" cy="101" r="25"/>
+              <g class="rings-core"><circle cx="84" cy="102" r="15"/><path d="M84 108v-12m-5 5 5-5 5 5"/></g>
+            </svg>
+            <div>
+              <h2 class="dropzone-title">Drop an onion photo</h2>
+              <p class="dropzone-text">or <span class="link">browse your files</span><span class="paste-hint"> · paste with <kbd>Ctrl</kbd>&thinsp;<kbd>V</kbd></span></p>
+              <p class="dropzone-formats">JPG · PNG · WEBP · BMP · HEIC &nbsp;—&nbsp; up to 20&nbsp;MB</p>
+            </div>
+            <input type="file" id="file-input" accept="image/*,.heic,.heif" hidden>
+          </div>
+
+          <div class="viewer" id="viewer" hidden>
+            <div class="viewer-bar">
+              <div class="legend" id="legend" role="group" aria-label="Show or hide classes"></div>
+              <div class="viewer-actions">
+                <button class="tool-btn" id="labels-toggle" type="button" aria-pressed="true" title="Show or hide box labels">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3-8.7 8.7z"/><circle cx="8.5" cy="8.5" r="1.4"/></svg><span>Labels</span>
+                </button>
+                <button class="tool-btn" id="download-png" type="button" title="Download the annotated image">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m-4.5-4.5L12 15l4.5-4.5M5 19.5h14"/></svg><span>Image</span>
+                </button>
+                <button class="tool-btn" id="download-json" type="button" title="Download a JSON report">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3.5H7a1.5 1.5 0 0 0-1.5 1.5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8zM14 3.5V8h4.5M9 13h6M9 16.5h4"/></svg><span>Report</span>
+                </button>
+                <button class="btn-primary" id="new-image" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>New image</span>
+                </button>
+              </div>
+            </div>
+            <div class="canvas-wrap" id="canvas-wrap">
+              <div class="frame" id="frame">
+                <canvas id="canvas" role="img" aria-label="Onion photo with detection boxes"></canvas>
+                <div class="scan" aria-hidden="true">
+                  <span class="scan-line"></span>
+                  <span class="scan-label"><span class="spinner"></span>Analyzing</span>
+                </div>
+              </div>
+            </div>
+            <div class="viewer-foot"><span id="file-meta"></span><span id="timing-meta"></span></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="results" aria-label="Results">
+        <section class="panel summary reveal" id="summary" style="--i: 3" aria-live="polite"></section>
+        <section class="panel reveal" style="--i: 4">
+          <div class="panel-head">
+            <h2 class="panel-title">Detections</h2>
+            <span class="panel-note" id="det-note"></span>
+          </div>
+          <ol class="det-list" id="det-list"></ol>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="shell footer">
+    <p><span class="footer-brand">Allium</span> runs entirely on this computer. Images are analyzed in memory and never saved.</p>
+    <p>Results are visual estimates from a single photo, not a substitute for physical grading.</p>
+  </footer>
+
+  <div class="drop-overlay" id="drop-overlay" hidden><div>Drop to analyze</div></div>
+  <div class="toast" id="toast" role="alert" hidden></div>
+</body>
+</html>

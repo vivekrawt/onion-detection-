@@ -1,0 +1,6 @@
+# Web layer. The model stack (ultralytics, torch, pillow, numpy) comes from ../requirements-lock.txt.
+fastapi==0.141.1
+uvicorn==0.52.4
+python-multipart==0.0.32
+# HEIC/HEIF (iPhone) photos; Ultralytics registers it with Pillow on demand.
+pi-heif==1.4.0

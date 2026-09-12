@@ -1,0 +1,19 @@
+# Environments and caches
+.venv/
+.cache/
+__pycache__/
+clip/
+
+# Run logs and archives
+*.log
+*.zip
+
+# Model weights and exports (see models/README.md)
+*.pt
+*_openvino_model/
+
+# Local datasets and pipeline artifacts
+Red and White Onion Dataset/
+onion-dataset/
+data/*
+!data/README.md

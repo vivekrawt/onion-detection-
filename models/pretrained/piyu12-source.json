@@ -1,0 +1,11 @@
+{
+  "repository": "Piyu12/fruit-veg-yolo11m-detector",
+  "revision": "82c9865261175e778ba5641cf8560b5d10439ec6",
+  "source_filename": "best.pt",
+  "local_filename": "piyu12-fruit-veg-yolo11m.pt",
+  "source_url": "https://huggingface.co/Piyu12/fruit-veg-yolo11m-detector",
+  "license_from_model_card": "agpl-3.0",
+  "task": "object-detection",
+  "onion_class_from_model_card": "Onion",
+  "note": "Published aggregate metrics are not onion-specific accuracy on this project's dataset. Local pilot required."
+}
