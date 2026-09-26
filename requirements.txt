@@ -1,0 +1,10 @@
+torch
+transformers
+ultralytics
+opencv-python
+numpy
+Pillow
+fastapi
+uvicorn
+python-multipart
+reportlab
