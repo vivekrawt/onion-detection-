@@ -1,14 +1,25 @@
 # Onion Quality Assessment
 
+## New: zero-shot CLIP + Flutter prototype
+
+The requested **AI-Based Onion Quality Detection and Grading System Using
+Pretrained CLIP** is in [backend/](backend/README.md) and [mobile/](mobile/README.md).
+It uses pretrained CLIP without training, OpenCV segmentation and marker sizing,
+configurable grading, FastAPI, PDF reports, and a six-screen Flutter client.
+Start with the Phase 1 CLI in the backend guide, then follow phases 2-9.
+The existing trained-model application described below remains a separate project path.
+
 AI-assisted inspection of onion batches from photos: a trained vision model detects each bulb and labels it healthy or unhealthy, with a web app for running it.
 
 ## Quick start
 
 ```powershell
-.\.venv\Scripts\python.exe webapp\run.py
+.\.venv-clip\Scripts\python.exe webapp\run.py
 ```
 
-Then open http://localhost:8000, drop in a photo of onions, and read the counts. See [webapp/README.md](webapp/README.md).
+Then open http://localhost:8000, choose a photo and click **Analyze quality**.
+The existing Allium UI now includes CLIP grading and automatically generated PDF
+reports. See [webapp/README.md](webapp/README.md).
 
 ## Structure
 

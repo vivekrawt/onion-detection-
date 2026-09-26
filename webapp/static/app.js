@@ -9,6 +9,10 @@ const el = {
   labelsToggle: $('#labels-toggle'), downloadPng: $('#download-png'), downloadJson: $('#download-json'), newImage: $('#new-image'),
   fileMeta: $('#file-meta'), timingMeta: $('#timing-meta'), summary: $('#summary'), detList: $('#det-list'), detNote: $('#det-note'),
   dropOverlay: $('#drop-overlay'), toast: $('#toast'),
+  analyze: $('#analyze-button'), error: $('#analysis-error'), confidencePanel: $('#confidence-panel'),
+  report: $('#quality-report'), pdfDownload: $('#pdf-download'), pdfPreview: $('#pdf-preview'),
+  reportMeta: $('#report-meta'), reportTotals: $('#report-totals'), warnings: $('#quality-warnings'),
+  detail: $('#onion-detail'), detailContent: $('#onion-detail-content'),
 };
 
 // Annotation colours are fixed across themes: they sit on photos, not on the page.
@@ -16,7 +20,13 @@ const CLASS_STYLE = {
   healthy: { title: 'Healthy', color: '#2FA36B', ink: '#FFFFFF' },
   unhealthy: { title: 'Unhealthy', color: '#E4572E', ink: '#FFFFFF' },
   onion: { title: 'Onion', color: '#F2B233', ink: '#2A1C05' },
+  grade_a: { title: 'Grade A', color: '#2FA36B', ink: '#FFFFFF' },
+  damaged: { title: 'Damaged', color: '#BF6427', ink: '#FFFFFF' },
+  rotten: { title: 'Rotten', color: '#B83C48', ink: '#FFFFFF' },
+  sprouted: { title: 'Sprouted', color: '#7057B6', ink: '#FFFFFF' },
+  undersized: { title: 'Undersized', color: '#26799E', ink: '#FFFFFF' },
 };
+const QUALITY_CLASSES = ['grade_a', 'damaged', 'rotten', 'sprouted', 'undersized'];
 const MAX_BYTES = 20 * 1024 * 1024;
 const IMAGE_NAME = /\.(jpe?g|png|webp|bmp|gif|tiff?|heic|heif)$/i;
 const RING = 2 * Math.PI * 52;
@@ -37,12 +47,13 @@ const state = {
 const pct = (value) => `${Math.round(value * 100)}%`;
 const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const refs = (root) => Object.fromEntries([...root.querySelectorAll('[data-ref]')].map((node) => [node.dataset.ref, node]));
-const aboveThreshold = () => (state.result ? state.result.detections.filter((d) => d.confidence >= state.threshold) : []);
+const aboveThreshold = () => (state.result ? state.result.detections.filter((d) => state.result.quality || d.confidence >= state.threshold) : []);
 const visibleDetections = () => aboveThreshold().filter((d) => !state.hidden.has(d.label));
 const readyText = () => `Ready · ${state.device.toUpperCase()}`;
 
 function counts() {
   const tally = { total: 0, healthy: 0, unhealthy: 0, onion: 0, confidence: 0 };
+  for (const key of QUALITY_CLASSES) tally[key] = 0;
   for (const d of aboveThreshold()) {
     tally.total += 1;
     tally[d.label] += 1;
@@ -118,7 +129,7 @@ function renderModels() {
       <input type="radio" name="model" value="${escapeHtml(model.id)}" ${model.available ? '' : 'disabled'}>
       <span class="model-radio" aria-hidden="true"></span>
       <span>
-        <span class="model-name">${escapeHtml(model.name)}<span class="tag tag-${model.mode}">${model.mode === 'health' ? 'Health' : 'Detect'}</span></span>
+        <span class="model-name">${escapeHtml(model.name)}<span class="tag tag-${model.mode}">${model.mode === 'quality' ? 'Complete' : model.mode === 'health' ? 'Health' : 'Detect'}</span></span>
         <span class="model-desc">${escapeHtml(model.available ? model.description : `Missing file: models/${model.file}`)}</span>
       </span>`;
     option.querySelector('input').addEventListener('change', () => selectModel(model.id));
@@ -134,7 +145,14 @@ function selectModel(id) {
   if (input) input.checked = true;
   // Score scales differ between models, so each starts from its own default.
   setThreshold(model.default_confidence, { redraw: false });
-  if (state.file) analyze();
+  el.confidencePanel.hidden = model.mode === 'quality';
+  if (state.file) {
+    state.seq += 1;
+    state.result = null;
+    state.summaryKind = null;
+    renderResults();
+    draw();
+  }
 }
 
 function setThreshold(value, { redraw = true } = {}) {
@@ -160,6 +178,7 @@ function setView(view) {
 
 function handleFile(file) {
   if (!file) return;
+  if (state.busy) { showToast('Please wait for this analysis to finish.'); return; }
   if (!file.type.startsWith('image/') && !IMAGE_NAME.test(file.name)) {
     showToast('Please choose an image file: JPG, PNG, WEBP, BMP or HEIC.', 'error');
     return;
@@ -173,6 +192,12 @@ function handleFile(file) {
     return;
   }
   state.file = file;
+  state.seq += 1;
+  state.result = null;
+  state.summaryKind = null;
+  state.hidden.clear();
+  state.hoverId = null;
+  el.error.hidden = true;
   state.image = null;
   if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
   state.previewUrl = URL.createObjectURL(file);
@@ -186,7 +211,7 @@ function handleFile(file) {
   preview.src = state.previewUrl;
   setView('viewer');
   layout();
-  analyze();
+  renderResults();
   const top = el.stage.getBoundingClientRect().top;
   if (top < 64 || top > window.innerHeight * 0.55) el.stage.scrollIntoView({ behavior: motionOK ? 'smooth' : 'auto', block: 'start' });
 }
@@ -201,11 +226,13 @@ function loadImage(src) {
 }
 
 async function analyze() {
+  if (!state.file || state.busy) return;
   const seq = ++state.seq;
   const { file, modelId } = state;
   cancelAnimationFrame(state.raf);
   Object.assign(state, { busy: true, result: null, hoverId: null, progress: null });
   el.frame.classList.add('is-scanning');
+  el.error.hidden = true;
   setStatus('busy', 'Analyzing');
   renderResults();
   draw();
@@ -213,8 +240,10 @@ async function analyze() {
   const body = new FormData();
   body.append('file', file, file.name || 'image.png');
   body.append('model_id', modelId);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 180000);
   try {
-    const response = await fetch('/api/analyze', { method: 'POST', body });
+    const response = await fetch('/api/analyze', { method: 'POST', body, signal: controller.signal });
     const data = await response.json().catch(() => null);
     if (!response.ok) {
       throw new Error((data && typeof data.detail === 'string' && data.detail) || `Analysis failed (HTTP ${response.status}).`);
@@ -231,9 +260,13 @@ async function analyze() {
   } catch (error) {
     if (seq !== state.seq) return;
     const offline = error instanceof TypeError;
-    reset();
-    showToast(offline ? 'Lost connection to the Allium server.' : error.message, 'error');
+    finishBusy();
+    renderResults();
+    el.error.textContent = error.name === 'AbortError' ? 'Analysis took too long. Try a smaller lot, then click Analyze again.' : offline ? 'Lost connection to the Allium server. Your photo is kept; click Analyze to retry.' : error.message;
+    el.error.hidden = false;
     if (offline) setStatus('error', 'Server offline');
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -249,6 +282,8 @@ function reset() {
   if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
   Object.assign(state, { file: null, previewUrl: null, image: null, result: null, hoverId: null, progress: null });
   finishBusy();
+  el.error.hidden = true;
+  if (el.detail.open) el.detail.close();
   if (!state.modelId) setStatus('error', 'No model files');
   setView('empty');
   renderResults();
@@ -367,7 +402,7 @@ function placeTag(ctx, { d, active, rect: r }, w, h, unit, occupied) {
   ctx.font = tagFont(unit);
   let text = `${d.id} · ${style.title} ${pct(d.confidence)}`;
   // Small boxes get a compact tag so dense piles stay readable.
-  if (!active && ctx.measureText(text).width + padX * 2 > Math.max(r.w, 96 * unit)) text = `${d.id} · ${pct(d.confidence)}`;
+  if (!active && ctx.measureText(text).width + padX * 2 > Math.max(r.w, 96 * unit)) text = state.result?.quality ? `${d.id} · ${style.title}` : `${d.id} · ${pct(d.confidence)}`;
   const width = ctx.measureText(text).width + padX * 2;
   const spots = [
     [r.x, r.y - height - gap], [r.x + gap, r.y + gap], [r.x + r.w - width, r.y - height - gap], [r.x + gap, r.y + r.h - height - gap],
@@ -473,22 +508,33 @@ el.detList.addEventListener('focusout', () => setHover(null));
 /* ---------- Results panels ---------- */
 
 function renderResults() {
+  el.frame.querySelector('.scan').hidden = !state.busy;
   renderSummary();
   renderLegend();
   renderList();
   renderMeta();
   el.downloadPng.disabled = !state.result;
   el.downloadJson.disabled = !state.result;
+  el.analyze.disabled = !state.file || state.busy;
+  el.analyze.textContent = state.busy ? 'Analyzing & preparing report…' : state.result ? 'Analyze again' : 'Analyze quality';
+  el.newImage.disabled = state.busy;
+  for (const input of el.modelList.querySelectorAll('input')) {
+    input.disabled = state.busy || !state.models.find((m) => m.id === input.value)?.available;
+  }
+  for (const sample of document.querySelectorAll('[data-sample]')) sample.disabled = state.busy;
+  el.downloadJson.title = state.result?.quality ? 'Download the ready PDF report' : 'Download JSON report';
+  renderQualityReport();
 }
 
 const SUMMARY_TEMPLATES = {
+  preview: () => `<h2 class="panel-title">Ready to analyze</h2><p class="summary-lead">Your photo is ready</p><p class="hint">Click <b>Analyze quality</b> above the photo. Allium will show the results and prepare your report automatically in Full quality report mode.</p>`,
   empty: () => `
     <h2 class="panel-title">Summary</h2>
     <p class="summary-lead">Awaiting an image</p>
     <ol class="steps">
       <li><span class="step-num">1</span><span><b>Upload</b> a clear, top-down photo of your onions.</span></li>
-      <li><span class="step-num">2</span><span><b>Detect</b>: the model boxes each bulb and judges its health.</span></li>
-      <li><span class="step-num">3</span><span><b>Review</b> the counts, tune the threshold, and export.</span></li>
+      <li><span class="step-num">2</span><span>Click <b>Analyze quality</b> to check the whole lot.</span></li>
+      <li><span class="step-num">3</span><span><b>Review</b> your labeled photo, breakdown and ready PDF.</span></li>
     </ol>`,
   busy: () => `
     <h2 class="panel-title">Summary</h2>
@@ -530,7 +576,11 @@ const SUMMARY_TEMPLATES = {
 };
 
 function renderSummary() {
-  const kind = state.busy ? 'busy' : state.result ? state.result.model.mode : 'empty';
+  if (state.result?.quality && !state.busy) {
+    renderQualitySummary();
+    return;
+  }
+  const kind = state.busy ? 'busy' : state.result ? state.result.model.mode : state.file ? 'preview' : 'empty';
   if (kind !== state.summaryKind) {
     state.summaryKind = kind;
     el.summary.innerHTML = SUMMARY_TEMPLATES[kind]();
@@ -591,7 +641,7 @@ function tweenNumber(node, to) {
 }
 
 function renderLegend() {
-  const labels = state.result ? (state.result.model.mode === 'health' ? ['healthy', 'unhealthy'] : ['onion']) : [];
+  const labels = state.result ? (state.result.quality ? QUALITY_CLASSES : state.result.model.mode === 'health' ? ['healthy', 'unhealthy'] : ['onion']) : [];
   if (el.legend.dataset.labels !== labels.join()) {
     el.legend.dataset.labels = labels.join();
     el.legend.replaceChildren(...labels.map((label) => {
@@ -632,7 +682,7 @@ function renderList() {
   const below = state.result.detections.length - detections.length;
   el.detNote.textContent = below ? `${detections.length} shown · ${below} below threshold` : `${detections.length} shown`;
   if (!detections.length) {
-    el.detList.innerHTML = `<li class="det-empty">Nothing above ${pct(state.threshold)} confidence.</li>`;
+    el.detList.innerHTML = `<li class="det-empty">${state.result.quality ? 'No onions detected. Try a clearer photo with separated bulbs.' : `Nothing above ${pct(state.threshold)} confidence.`}</li>`;
     return;
   }
   el.detList.replaceChildren(...detections.map((d) => {
@@ -644,12 +694,19 @@ function renderList() {
     row.style.setProperty('--c', style.color);
     row.classList.toggle('is-muted', state.hidden.has(d.label));
     row.classList.toggle('is-active', d.id === state.hoverId);
-    row.setAttribute('aria-label', `Onion ${d.id}: ${style.title}, ${pct(d.confidence)} confidence`);
+    row.setAttribute('aria-label', `Onion ${d.id}: ${style.title}, ${pct(d.confidence)} relative confidence${state.result.quality ? '. Open details' : ''}`);
     row.innerHTML = `
       <span class="det-num">${d.id}</span>
       <span class="det-label"><span class="dot"></span>${style.title}</span>
       <span class="det-meter"><span style="width: ${(d.confidence * 100).toFixed(1)}%"></span></span>
       <span class="det-conf">${pct(d.confidence)}</span>`;
+    if (state.result.quality) {
+      row.setAttribute('role', 'button');
+      row.addEventListener('click', () => openOnion(d.id));
+      row.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openOnion(d.id); }
+      });
+    }
     return row;
   }));
 }
@@ -660,8 +717,60 @@ function renderMeta() {
   el.fileMeta.textContent = result ? `${name} · ${result.image.original_width} × ${result.image.original_height}px` : name;
   el.timingMeta.textContent = result
     ? `${result.model.name} · ${Math.round(result.timing_ms.inference)} ms inference`
-    : state.busy ? 'Analyzing…' : '';
+    : state.busy ? 'Analyzing and generating your report…' : state.file ? 'Ready — click Analyze quality' : '';
 }
+
+/* ---------- Complete quality results: server counts also match the PDF ---------- */
+function renderQualitySummary() {
+  const q = state.result.quality;
+  state.summaryKind = 'quality';
+  el.summary.innerHTML = `<div class="panel-head"><h2 class="panel-title">Quality overview</h2><span class="model-pill">Report ready</span></div>
+    <div class="quality-total"><strong>${q.total_onions}</strong><span>onions analyzed</span></div>
+    <div class="quality-kpis"><div><strong>${q.grade_a.percentage.toFixed(1)}%</strong><span>Grade A · ${q.grade_a.count} onions</span></div><div><strong>${q.urs_percentage.toFixed(1)}%</strong><span>URS · ${q.urs_count} onions</span></div></div>
+    <div class="quality-breakdown">${QUALITY_CLASSES.map((key) => `<div class="quality-row"><span><i style="background:${CLASS_STYLE[key].color}"></i>${CLASS_STYLE[key].title}</span><b>${q[key].count}</b><span>${q[key].percentage.toFixed(1)}%</span></div>`).join('')}</div>
+    <p class="hint">${q.needs_review_count || 0} predictions have weak or conflicting evidence and need review. Counts include visible bulbs or cut pieces. Click an onion for its photo and scores.</p>
+    <p class="quality-scale">${q.pixels_per_cm == null ? 'Grade A reflects healthy appearance. Size not measured — add the reference marker to check undersized onions.' : 'Reference marker detected · size estimated in cm.'}</p>
+    <p class="hint">CLIP scores describe relative similarity, not verified probabilities.</p>`;
+}
+
+function renderQualityReport() {
+  const q = state.result?.quality;
+  el.report.hidden = !q;
+  if (!q) {
+    el.report.dataset.id = '';
+    el.pdfPreview.removeAttribute('src');
+    return;
+  }
+  if (el.report.dataset.id === q.report_id) return;
+  el.report.dataset.id = q.report_id;
+  el.pdfDownload.href = `${q.pdf_url}?download=true`;
+  el.reportMeta.textContent = `${new Date(q.created_at).toLocaleString()} · Report ${q.report_id}`;
+  el.reportTotals.innerHTML = `<span><b>${q.total_onions}</b> onions</span><span><b>${q.grade_a.percentage.toFixed(1)}%</b> Grade A</span><span><b>${q.urs_percentage.toFixed(1)}%</b> URS</span>`;
+  el.warnings.replaceChildren(...q.warnings.map((message) => {
+    const p = document.createElement('p'); p.textContent = message; return p;
+  }));
+  el.pdfPreview.src = q.pdf_url;
+}
+
+function openOnion(id) {
+  const onion = state.result?.quality?.individual_onions.find((o) => o.id === id);
+  if (!onion) return;
+  const label = (key) => CLASS_STYLE[key]?.title || key;
+  el.detailContent.innerHTML = `<h2 id="onion-detail-title">Onion #${onion.id}</h2>
+    <img class="onion-crop" src="${escapeHtml(onion.crop_url)}" alt="Onion ${onion.id} crop">
+    <h3>${escapeHtml(label(onion.final_class))}</h3>
+    <p>${escapeHtml(onion.class_description || '')}</p>
+    <p class="hint">${escapeHtml(onion.classification_reason || '')}</p>
+    <dl class="facts"><div><dt>CLIP condition</dt><dd>${escapeHtml(label(onion.condition))}</dd></div>
+    <div><dt>Estimated diameter</dt><dd>${onion.estimated_diameter_cm == null ? 'Unknown' : `${onion.estimated_diameter_cm.toFixed(1)} cm`}</dd></div>
+    <div><dt>Relative confidence</dt><dd>${pct(onion.confidence)}</dd></div></dl>
+    <h3>Condition scores</h3><div class="quality-breakdown">${Object.entries(onion.scores).map(([key, value]) => `<div class="quality-row"><span>${escapeHtml(label(key))}</span><b>${pct(value)}</b><span>${onion.similarities[key].toFixed(3)} cosine</span></div>`).join('')}</div>
+    <p class="hint">Appearance and size are assessed separately. Scores are not calibrated probabilities.</p>`;
+  if (!el.detail.open) el.detail.showModal();
+}
+
+$('#detail-close').addEventListener('click', () => el.detail.close());
+el.canvas.addEventListener('click', (event) => { const detection = hitTest(event); if (detection) openOnion(detection.id); });
 
 /* ---------- Exports ---------- */
 
@@ -682,6 +791,10 @@ function saveBlob(blob, filename) {
 }
 
 function captionText() {
+  if (state.result.quality) {
+    const q = state.result.quality;
+    return `${q.total_onions} onions · Grade A ${q.grade_a.percentage}% · URS ${q.urs_percentage}% · CLIP prototype`;
+  }
   const tally = counts();
   const model = state.result.model;
   const parts = model.mode === 'health'
@@ -735,6 +848,7 @@ async function downloadImage() {
 
 function downloadReport() {
   if (!state.result) return;
+  if (state.result.quality) { el.pdfDownload.click(); return; }
   const result = state.result;
   const tally = counts();
   const { original_width: width, original_height: height } = result.image;
@@ -826,6 +940,7 @@ el.labelsToggle.addEventListener('click', () => {
   el.labelsToggle.setAttribute('aria-pressed', String(state.showLabels));
   draw();
 });
+el.analyze.addEventListener('click', analyze);
 el.downloadPng.addEventListener('click', downloadImage);
 el.downloadJson.addEventListener('click', downloadReport);
 el.newImage.addEventListener('click', () => {

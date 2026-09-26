@@ -1,5 +1,10 @@
 """Start the Allium onion classification web app."""
 import argparse
+import sys
+from pathlib import Path
+
+# The shared CLIP package sits next to webapp, even when run from this folder.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import uvicorn
 
