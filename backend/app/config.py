@@ -47,7 +47,7 @@ LABELS = {"grade_a": "Grade A", "damaged": "Damaged", "rotten": "Rotten", "sprou
 
 @dataclass(frozen=True)
 class Settings:
-    CLIP_MODEL_NAME: str = "openai/clip-vit-base-patch32"
+    CLIP_MODEL_NAME: str = str(Path(__file__).resolve().parents[2] / "models" / "pretrained" / "clip-vit-base-patch32")
     MODEL_CACHE_DIR: Path = Path(__file__).resolve().parents[2] / ".cache/huggingface/hub"
     CLASS_PROMPTS: dict = field(default_factory=lambda: CLASS_PROMPTS)
     # Below this relative-score threshold, request review without changing the label.

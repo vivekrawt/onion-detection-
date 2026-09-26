@@ -39,7 +39,7 @@ OnionDetection/
 └─ Red and White Onion Dataset/  original source photos
 ```
 
-The two dataset folders stay at the top level because tools record absolute paths to them; see [data/README.md](data/README.md). Model weights and datasets are git-ignored.
+The two dataset folders stay at the top level because tools record absolute paths to them; see [data/README.md](data/README.md). Datasets and detector weights are git-ignored; the shared CLIP checkpoint is tracked with Git LFS.
 
 ## Pipeline
 
