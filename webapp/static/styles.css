@@ -981,7 +981,7 @@ canvas { display: block; cursor: crosshair; touch-action: manipulation; }
   }
   .controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .panel-model { grid-column: 1 / -1; }
-  .model-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .model-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 900px) {
@@ -1001,4 +1001,46 @@ canvas { display: block; cursor: crosshair; touch-action: manipulation; }
   .tool-btn span { display: none; }
   .tool-btn { padding: 0 9px; }
   .footer { flex-direction: column; }
+}
+
+/* Full quality grading uses the existing Allium palette and card system. */
+.tag-quality { color: var(--accent); background: var(--accent-soft); }
+.capture-guide ol { padding-left: 20px; color: var(--ink-2); font-size: 13px; }
+.capture-guide li + li { margin-top: 8px; }
+.quality-report { margin-top: 20px; }
+.quality-report .panel-head { flex-wrap: wrap; gap: 12px; }
+a.btn-primary { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+.quality-total { display: flex; align-items: baseline; gap: 10px; margin: 14px 0 18px; }
+.quality-total strong { font: 56px/1.1 var(--serif); color: var(--accent); }
+.quality-total span { color: var(--ink-2); font-size: 13px; }
+.quality-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+.quality-kpis > div { background: var(--surface-2); padding: 14px 10px; border: 1px solid var(--line); border-radius: 12px; }
+.quality-kpis strong { display: block; font: 30px/1.3 var(--serif); }
+.quality-kpis span { font-size: 11px; color: var(--ink-2); }
+.quality-row { display: grid; grid-template-columns: minmax(0,1fr) 32px 65px; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+.quality-row > span:first-child { display: flex; align-items: center; gap: 8px; }
+.quality-row > span:last-child { text-align: right; color: var(--ink-2); }
+.quality-row i { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.quality-scale { padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-size: 12px; }
+.report-totals { display: flex; flex-wrap: wrap; gap: 12px 24px; padding: 14px 0; border-block: 1px solid var(--line); }
+.report-totals b { color: var(--accent); }
+.quality-warnings { font-size: 12px; color: var(--ink-2); }
+#report-meta { overflow-wrap: anywhere; }
+#pdf-details summary { cursor: pointer; padding: 10px 0; color: var(--accent); font-weight: 600; }
+#pdf-preview { width: 100%; height: 540px; border: 1px solid var(--line); border-radius: 10px; background: white; }
+.analysis-error { padding: 14px 20px; color: var(--unhealthy); background: var(--unhealthy-soft); }
+#analyze-button { white-space: normal; min-height: 38px; height: auto; padding: 10px 16px; }
+#onion-detail { width: min(520px, calc(100vw - 32px)); max-height: 90vh; overflow: auto; padding: 26px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); }
+#onion-detail::backdrop { background: rgba(20, 14, 24, .65); backdrop-filter: blur(4px); }
+#onion-detail h2 { font-family: var(--serif); font-size: 30px; margin: 4px 0 18px; }
+#onion-detail .quality-row { grid-template-columns: minmax(0, 1fr) 44px 100px; }
+.detail-close { float: right; }
+.onion-crop { width: 100%; height: 220px; object-fit: contain; background: var(--surface-2); border-radius: 12px; }
+.det[role='button'] { cursor: pointer; }
+@media (max-width: 640px) {
+  .viewer-bar { gap: 12px; }
+  .viewer-actions { width: 100%; }
+  #analyze-button { flex: 1 0 100%; }
+  .quality-report .panel-head { align-items: flex-start; }
+  #pdf-preview { height: 400px; }
 }

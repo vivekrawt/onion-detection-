@@ -1,5 +1,20 @@
 # Environments and caches
 .venv/
+.venv-clip/
+backend/output/
+output/
+tmp/
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins*
+mobile/android/local.properties
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/ios/Flutter/ephemeral/
+test_images/**/*.jpg
+test_images/**/*.jpeg
+test_images/**/*.png
+test_images/**/*.webp
 .cache/
 __pycache__/
 clip/

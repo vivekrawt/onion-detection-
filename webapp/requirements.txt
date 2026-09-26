@@ -4,3 +4,4 @@ uvicorn==0.52.4
 python-multipart==0.0.32
 # HEIC/HEIF (iPhone) photos; Ultralytics registers it with Pillow on demand.
 pi-heif==1.4.0
+-r ../backend/requirements.txt

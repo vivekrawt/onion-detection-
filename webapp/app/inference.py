@@ -113,6 +113,23 @@ class Engine:
             model.predict(Image.new('RGB', (spec.imgsz, spec.imgsz)), imgsz=spec.imgsz, classes=list(keep),
                           device='cpu', verbose=False)
 
+    def detect_quality(self, image, sizes=(640, 1280), confidence=.25):
+        """Two resolutions retain small/partially visible bulbs; count each once."""
+        from .detection import consolidate
+        work, _ = prepare_image(image)
+        detections = []
+        with self._lock:
+            spec, model, keep = self._model(DEFAULT_MODEL)
+            for size in sizes:
+                result = model.predict(work, conf=confidence, iou=.45, imgsz=size,
+                                       classes=list(keep), agnostic_nms=True, device='cpu', verbose=False)[0]
+                for box, score in zip(result.boxes.xyxyn.tolist(), result.boxes.conf.tolist()):
+                    detections.append({'box': [max(0., min(1., x)) for x in box],
+                                       'confidence': score, 'pass': str(size)})
+        kept, diagnostics = consolidate(detections, confidence)
+        return {'detections': kept, 'diagnostics': diagnostics,
+                'model': {'default_confidence': confidence, 'name': spec.name}}
+
     def analyze(self, image, model_id=DEFAULT_MODEL):
         started = time.perf_counter()
         work, original_size = prepare_image(image)
