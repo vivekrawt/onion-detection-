@@ -14,13 +14,14 @@ py -3.12 -m venv .venv-clip
 Example input: a tightly cropped photo of one onion. Example output (illustrative,
 not a measured result): `Grade A`. Other labels: `Damaged`, `Rotten`, `Sprouted`.
 
-The first run downloads `openai/clip-vit-base-patch32` from Hugging Face. Later
-runs reuse the cache. CUDA is used when available; otherwise inference uses CPU.
+The repository includes the `openai/clip-vit-base-patch32` weights through Git
+LFS, so a Git LFS clone can run offline. CUDA is used when available; otherwise
+inference uses CPU.
 Install the appropriate CUDA-enabled PyTorch build if GPU support is needed.
 
 ### Files and how it works
 
-- `app/config.py`: prompts and experimental thresholds.
+- `app/config.py`: local model path, prompts and experimental thresholds.
 - `app/models/clip_classifier.py`: loads CLIP and its processor once per process;
   encodes several descriptions per condition, normalizes each, averages them,
   and normalizes each class mean. It compares normalized image embeddings to
@@ -47,8 +48,8 @@ reference marker is available. Missing scale leaves diameter unknown, not the gr
 ### Common errors
 
 - `No module named ...`: use the same Python executable for installation and running.
-- Download/network failure: download once online; set `ONION_OFFLINE=1` only after
-  caching the model. A proxy may require local network configuration.
+- Model missing after cloning: install Git LFS and run `git lfs pull` from the
+  repository root. A normal Git clone leaves the large weight as a pointer file.
 - CUDA memory error: lower `BATCH_SIZE` or set `CUDA_VISIBLE_DEVICES=-1` before launch.
 - Wrong labels: crop one onion, use uniform light, inspect scores, and evaluate
   real labeled images before adjusting prompts. Never equate score with accuracy.
